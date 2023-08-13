@@ -11,6 +11,7 @@ import argparse
 import configparser
 import logging
 import os
+import sys
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -57,9 +58,12 @@ files = []
 output_dir = args.path + "/data/output/"
 
 cg = CoinGeckoAPI()
-coins = config.get("Input", "coins").split(",")
 coin_by_id = {}
 coin_market_chart_by_id = {}
+coins = config.get("Input", "coins").split(",")
+if len(coins) > 5:
+    logging.warning("Maximum 5 coins at a time")
+    sys.exit()
 
 
 def save_dataframe_to_pdf(
@@ -132,6 +136,20 @@ def save_dataframe_to_pdf(
     files.append(output_dir + file)
 
 
+def initcap(string):
+    """
+    Convert a string to initcap format.
+
+    Args:
+        string (str): The input string to be converted.
+    Returns:
+        str: The input string converted to initcap format, where the first letter of each word is capitalized.
+    """
+    words = string.lower().split()
+    capitalized_words = [word.capitalize() for word in words]
+    return " ".join(capitalized_words)
+
+
 def save_paragraphs_to_pdf(title, headings, paragraphs, output_file):
     """
     Save paragraphs to a PDF file with specified title, headings, and output file.
@@ -157,6 +175,7 @@ def save_paragraphs_to_pdf(title, headings, paragraphs, output_file):
     elements = []
     main_title_element = Paragraph(title, main_title_style)
     elements.append(main_title_element)
+    headings = [initcap(i) for i in headings]
 
     for title, paragraph in zip(headings, paragraphs):
         title_element = Paragraph(title, title_style)
@@ -190,11 +209,23 @@ def merge_pdfs(input_files, output_file):
 def download_coingecko_data():
     """Download coingecko data."""
     logging.info("Downloading coingecko data")
+
+    coin_list = pd.DataFrame(cg.get_coins_list())
+
     for i in coins:
-        coin_by_id[i] = cg.get_coin_by_id(i)
-        coin_market_chart_by_id[i] = cg.get_coin_market_chart_by_id(
-            id=i, vs_currency="usd", days="90"
-        )
+        df = coin_list.loc[coin_list["name"].str.lower().isin([i])]
+        if len(df) == 0:
+            logging.fatal(f"{i} is not available")
+            sys.exit()
+        try:
+            id = df["id"].values[0]
+            coin_by_id[i] = cg.get_coin_by_id(id)
+            coin_market_chart_by_id[i] = cg.get_coin_market_chart_by_id(
+                id=id, vs_currency="usd", days="90"
+            )
+        except Exception as e:
+            logging.fatal(f"Unable to get data for {i}: {e}")
+            sys.exit()
 
 
 def create_title_page():
@@ -244,16 +275,15 @@ def plot_price_data():
     scaler = MinMaxScaler()
     price_data[coins] = scaler.fit_transform(price_data[coins])
 
-    fig, ax = plt.subplots(figsize=(20, 10))
+    fig, ax = plt.subplots(figsize=(12, 6))
     ax.set_prop_cycle(color=palette)
 
     for i in coins:
         ax.plot(price_data["time"], price_data[i], label=i)
 
     plt.title("90 Day Price Changes", fontsize=12, fontweight="bold")
-    ax.set_xlabel("Time")
+    ax.set_xlabel("Date")
     ax.set_ylabel("Price")
-    ax.set_yscale("linear")
     fig.legend(loc="upper right")
     files.append(output_dir + "price_chart.pdf")
     plt.savefig(files[-1])
@@ -269,62 +299,6 @@ def plot_price_data():
     pp = PdfPages(files[-1])
     pp.savefig(sns_plot.figure)
     pp.close()
-
-
-def plot_volume_data():
-    """Plot volume data."""
-    logging.info("Plotting volume data")
-    volume_data = pd.DataFrame(columns=["time"])
-
-    for i in coins:
-        df = coin_market_chart_by_id[i]
-        df = pd.DataFrame(df["total_volumes"], columns=["time", i])
-        df["time"] = pd.to_datetime(df["time"], unit="ms")
-        df["time"] = df["time"].round("H")
-        volume_data = pd.merge(volume_data, df, on="time", how="outer")
-
-    volume_data = volume_data.sort_values(by=["time"])
-    scaler = MinMaxScaler()
-    volume_data[coins] = scaler.fit_transform(volume_data[coins])
-
-    fig, ax = plt.subplots(figsize=(20, 10))
-    ax.set_prop_cycle(color=palette)
-
-    for i in coins:
-        ax.plot(volume_data["time"], volume_data[i], label=i)
-
-    plt.title("90 Day Volume Changes", fontsize=12, fontweight="bold")
-    ax.set_xlabel("Time")
-    ax.set_ylabel("Volume")
-    ax.set_yscale("log")
-    fig.legend(loc="upper right")
-    files.append(output_dir + "volume_chart.pdf")
-    plt.savefig(files[-1])
-
-
-def tm_sorter(column):
-    """Sort function."""
-    exchanges = [
-        "Binance",
-        "Binance US",
-        "Bitstamp",
-        "Bitfinex",
-        "Bittrex",
-        "Coinbase Exchange",
-        "Crypto.com Exchange",
-        "Gate.io",
-        "Gemini",
-        "Huobi Global",
-        "Huobi Korea",
-        "Kraken",
-        "KuCoin",
-        "OKEx",
-        "Poloniex",
-        "Uniswap (v3)",
-        "Upbit",
-    ]
-    correspondence = {team: order for order, team in enumerate(exchanges)}
-    return column.map(correspondence)
 
 
 def get_exchange_data():
@@ -343,9 +317,12 @@ def get_exchange_data():
         df = df.groupby(["Exchange"]).size().to_frame(i)
         exchange_data = pd.merge(exchange_data, df, on="Exchange", how="outer")
 
-    exchange_data = exchange_data.sort_values(by="Exchange", key=tm_sorter)
-    exchange_data.reset_index(drop=True, inplace=True)
+    exchange_data["total"] = exchange_data.iloc[:, 1:].sum(axis=1)
+    exchange_data = exchange_data.sort_values(by=["total"], ascending=False)
+    exchange_data = exchange_data.drop("total", axis=1)
     exchange_data = exchange_data.head(10)
+    exchange_data["Exchange"] = exchange_data["Exchange"].str.replace(" Exchange", "")
+    exchange_data = exchange_data.rename(columns=lambda x: initcap(x))
     save_dataframe_to_pdf("Exchange No. of Pairs", exchange_data, "exchange.pdf")
 
 
@@ -368,13 +345,10 @@ def get_financial_data():
         "total_value_locked",
     ]
     k2 = k1 + [
-        "price_change_24h",
         "price_change_percentage_24h",
         "price_change_percentage_7d",
-        "price_change_percentage_14d",
         "price_change_percentage_30d",
         "price_change_percentage_60d",
-        "price_change_percentage_200d",
         "price_change_percentage_1y",
         "total_supply",
         "max_supply",
@@ -383,28 +357,29 @@ def get_financial_data():
         "fdv_to_tvl_ratio",
     ]
     add_round = [
+        "ath",
         "ath_change_percentage",
         "atl",
         "atl_change_percentage",
-        "price_change_24h",
         "price_change_percentage_24h",
         "price_change_percentage_7d",
-        "price_change_percentage_14d",
         "price_change_percentage_30d",
         "price_change_percentage_60d",
-        "price_change_percentage_200d",
         "price_change_percentage_1y",
+        "total_supply",
         "circulating_supply",
+        "nvt_ratio",
         "fully_diluted_value",
+        "fdv_to_market_cap",
     ]
     add_seperator = [
+        "current_price",
         "market_cap",
         "total_volume",
         "high_24h",
         "low_24h",
         "ath",
         "atl",
-        "price_change_24h",
         "total_supply",
         "max_supply",
         "circulating_supply",
@@ -415,14 +390,12 @@ def get_financial_data():
         "atl_change_percentage",
         "price_change_percentage_24h",
         "price_change_percentage_7d",
-        "price_change_percentage_14d",
         "price_change_percentage_30d",
         "price_change_percentage_60d",
-        "price_change_percentage_200d",
         "price_change_percentage_1y",
     ]
 
-    financial_data = pd.DataFrame(columns=["metric"])
+    financial_data = pd.DataFrame(columns=["Metric"])
 
     for i in coins:
         df = coin_by_id[i]["market_data"]
@@ -447,9 +420,13 @@ def get_financial_data():
                 dic[c] = format(dic[c], ",")
         for c in add_percent:
             dic[c] = str(dic[c]) + "%"
-        df = pd.DataFrame(list(dic.items()), columns=["metric", i])
-        financial_data = pd.merge(financial_data, df, on="metric", how="outer")
+        df = pd.DataFrame(list(dic.items()), columns=["Metric", i])
+        financial_data = pd.merge(financial_data, df, on="Metric", how="outer")
 
+    financial_data["Metric"] = financial_data["Metric"].str.replace("_", " ")
+    financial_data["Metric"] = financial_data["Metric"].str.replace("percentage", "%")
+    financial_data["Metric"] = financial_data["Metric"].apply(initcap)
+    financial_data = financial_data.rename(columns=lambda x: initcap(x))
     save_dataframe_to_pdf("Financial Data", financial_data, "financial.pdf")
 
 
@@ -470,7 +447,7 @@ def get_ratings_data():
     add_round = keys
     add_percent = ["sentiment_votes_up_percentage", "sentiment_votes_down_percentage"]
 
-    ratings_data = pd.DataFrame(columns=["metric"])
+    ratings_data = pd.DataFrame(columns=["Metric"])
 
     for i in coins:
         df = coin_by_id[i]
@@ -479,9 +456,13 @@ def get_ratings_data():
             dic[c] = round(dic[c], 2)
         for c in add_percent:
             dic[c] = str(dic[c]) + "%"
-        df = pd.DataFrame(list(dic.items()), columns=["metric", i])
-        ratings_data = pd.merge(ratings_data, df, on="metric", how="outer")
+        df = pd.DataFrame(list(dic.items()), columns=["Metric", i])
+        ratings_data = pd.merge(ratings_data, df, on="Metric", how="outer")
 
+    ratings_data["Metric"] = ratings_data["Metric"].str.replace("_", " ")
+    ratings_data["Metric"] = ratings_data["Metric"].str.replace("percentage", "%")
+    ratings_data["Metric"] = ratings_data["Metric"].apply(initcap)
+    ratings_data = ratings_data.rename(columns=lambda x: initcap(x))
     save_dataframe_to_pdf("Ratings Data", ratings_data, "ratings.pdf")
 
 
@@ -506,7 +487,7 @@ def get_community_data():
     ]
     add_seperator = keys
 
-    community_data = pd.DataFrame(columns=["metric"])
+    community_data = pd.DataFrame(columns=["Metric"])
 
     for i in coins:
         df = coin_by_id[i]["community_data"]
@@ -516,9 +497,14 @@ def get_community_data():
         for c in add_seperator:
             if dic[c] is not None:
                 dic[c] = format(dic[c], ",")
-        df = pd.DataFrame(list(dic.items()), columns=["metric", i])
-        community_data = pd.merge(community_data, df, on="metric", how="outer")
+        df = pd.DataFrame(list(dic.items()), columns=["Metric", i])
+        community_data = pd.merge(community_data, df, on="Metric", how="outer")
 
+    community_data["Metric"] = community_data["Metric"].str.replace("_", " ")
+    community_data["Metric"] = community_data["Metric"].str.replace("average", "avg")
+    community_data["Metric"] = community_data["Metric"].str.replace("channel", "")
+    community_data["Metric"] = community_data["Metric"].apply(initcap)
+    community_data = community_data.rename(columns=lambda x: initcap(x))
     save_dataframe_to_pdf("Community Data", community_data, "community.pdf")
 
 
@@ -539,7 +525,7 @@ def get_developer_data():
     add_round = ["closed_issues_percent"]
     add_seperator = keys
 
-    developer_data = pd.DataFrame(columns=["metric"])
+    developer_data = pd.DataFrame(columns=["Metric"])
 
     for i in coins:
         df = coin_by_id[i]["developer_data"]
@@ -550,9 +536,12 @@ def get_developer_data():
         for c in add_seperator:
             if dic[c] is not None:
                 dic[c] = format(dic[c], ",")
-        df = pd.DataFrame(list(dic.items()), columns=["metric", i])
-        developer_data = pd.merge(developer_data, df, on="metric", how="outer")
+        df = pd.DataFrame(list(dic.items()), columns=["Metric", i])
+        developer_data = pd.merge(developer_data, df, on="Metric", how="outer")
 
+    developer_data["Metric"] = developer_data["Metric"].str.replace("_", " ")
+    developer_data["Metric"] = developer_data["Metric"].apply(initcap)
+    developer_data = developer_data.rename(columns=lambda x: initcap(x))
     save_dataframe_to_pdf("Developer Data", developer_data, "developer.pdf")
 
 
@@ -562,7 +551,6 @@ def main():
     create_title_page()
     get_summary_info()
     plot_price_data()
-    plot_volume_data()
     get_exchange_data()
     get_financial_data()
     get_ratings_data()
