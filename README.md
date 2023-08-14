@@ -9,7 +9,7 @@ It compares several categories including:
 - developer data
 
 The cryptocurrencies to be compared can be defined in the config/default.ini file, along with the report title and output file name.
-Multiple configs can be created to create various reports.
+Multiple configs can be created to generate various reports.
 
 ### Samples
 Sample output file: [CryptoCompare.pdf](data/output/CryptoCompare.pdf)
