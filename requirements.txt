@@ -1,0 +1,7 @@
+matplotlib
+numpy
+pdfrw
+seaborn
+fpdf
+pycoingecko
+reportlab

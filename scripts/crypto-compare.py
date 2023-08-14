@@ -12,6 +12,7 @@ import configparser
 import logging
 import os
 import sys
+import warnings
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -24,7 +25,6 @@ from pycoingecko import CoinGeckoAPI
 from reportlab.lib.pagesizes import letter
 from reportlab.lib.styles import ParagraphStyle, getSampleStyleSheet
 from reportlab.platypus import Paragraph, SimpleDocTemplate
-from sklearn.preprocessing import MinMaxScaler
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--path", default="./", type=str, help="directory path")
@@ -32,6 +32,8 @@ parser.add_argument(
     "--config", default="config/default.ini", type=str, help="config file"
 )
 args = parser.parse_args()
+
+warnings.filterwarnings("ignore", category=DeprecationWarning)
 
 logging.basicConfig(
     level=logging.INFO, format="%(asctime)s [%(levelname)s] %(message)s"
@@ -269,12 +271,10 @@ def plot_price_data():
         df = pd.DataFrame(df["prices"], columns=["time", i])
         df["time"] = pd.to_datetime(df["time"], unit="ms")
         df["time"] = df["time"].round("H")
+        df[i] = df[i].pct_change().cumsum()
         price_data = pd.merge(price_data, df, on="time", how="outer")
 
     price_data = price_data.sort_values(by=["time"])
-    scaler = MinMaxScaler()
-    price_data[coins] = scaler.fit_transform(price_data[coins])
-
     fig, ax = plt.subplots(figsize=(12, 6))
     ax.set_prop_cycle(color=palette)
 
@@ -398,6 +398,7 @@ def get_financial_data():
     financial_data = pd.DataFrame(columns=["Metric"])
 
     for i in coins:
+        # get data
         df = coin_by_id[i]["market_data"]
         for j in k1:
             r = df[j]
@@ -406,6 +407,7 @@ def get_financial_data():
             else:
                 df[j] = r
         dic = {key: df[key] for key in k2}
+        # calculations
         dic["nvt_ratio"] = dic["market_cap"] / dic["total_volume"]
         dic["fully_diluted_value"] = (
             dic["current_price"] * dic["total_supply"]
@@ -413,6 +415,9 @@ def get_financial_data():
             else 0
         )
         dic["fdv_to_market_cap"] = dic["fully_diluted_value"] / dic["market_cap"]
+        # formatting
+        for c in ["ath_date", "atl_date"]:
+            dic[c] = dic[c][:10]
         for c in add_round:
             dic[c] = round(dic[c], 2)
         for c in add_seperator:
@@ -522,7 +527,7 @@ def get_developer_data():
         "pull_request_contributors",
         "commit_count_4_weeks",
     ]
-    add_round = ["closed_issues_percent"]
+    add_round = ["closed_issues_%"]
     add_seperator = keys
 
     developer_data = pd.DataFrame(columns=["Metric"])
@@ -530,12 +535,14 @@ def get_developer_data():
     for i in coins:
         df = coin_by_id[i]["developer_data"]
         dic = {key: df[key] for key in keys}
-        dic["closed_issues_percent"] = 100 * dic["closed_issues"] / dic["total_issues"]
+        dic["closed_issues_%"] = 100 * dic["closed_issues"] / dic["total_issues"]
         for c in add_round:
             dic[c] = round(dic[c], 2)
         for c in add_seperator:
             if dic[c] is not None:
                 dic[c] = format(dic[c], ",")
+        for c in ["closed_issues_%"]:
+            dic[c] = str(dic[c]) + "%"
         df = pd.DataFrame(list(dic.items()), columns=["Metric", i])
         developer_data = pd.merge(developer_data, df, on="Metric", how="outer")
 
