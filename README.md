@@ -23,7 +23,7 @@ pip install -r requirements.txt
 ### Usage
 ```
 $ python3 scripts/crypto-compare.py --help
-usage: crypto-compare.py [-h] [--path PATH] [--config CONFIG]
+usage: crypto-compare.py [-h] [--config CONFIG]
 
 optional arguments:
   -h, --help       show this help message and exit
