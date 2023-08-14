@@ -9,7 +9,7 @@ It compares several categories including:
 - developer data
 
 The cryptocurrencies to be compared can be defined in the config/default.ini file, along with the report title and output file name.
-Multiple configs can be created to create various reports.
+Multiple configs can be created to generate various reports.
 
 ### Samples
 Sample output file: [CryptoCompare.pdf](data/output/CryptoCompare.pdf)
@@ -23,7 +23,7 @@ pip install -r requirements.txt
 ### Usage
 ```
 $ python3 scripts/crypto-compare.py --help
-usage: crypto-compare.py [-h] [--path PATH] [--config CONFIG]
+usage: crypto-compare.py [-h] [--config CONFIG]
 
 optional arguments:
   -h, --help       show this help message and exit
