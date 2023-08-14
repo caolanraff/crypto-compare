@@ -1,7 +1,7 @@
 # crypto-compare
 The Crypto Compare tool allows the comparison of up to 5 different cryptocurrencies, published in a PDF report.
 It compares several categories including:
-- prices changes
+- price changes
 - exchange pairings
 - financials
 - ratings
@@ -32,9 +32,9 @@ optional arguments:
 
 ### Examples
 ```
-python scripts/crypto-compare.py --config config/default.ini
+python3 scripts/crypto-compare.py --config config/default.ini
 ```
 
-##### Rate Limit
+### Rate Limit
 Note that the Coingecko API has a rate limit of 10-30 calls per minute on the free version.
 The script makes 3 calls per execution, and therefore may fail if run too many times in a row.

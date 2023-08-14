@@ -1,7 +1,7 @@
 """
 Crypto Comparison Tool.
 
-This script can be used to compare multiple cryptocurrencies against each other, for better understanding of their differences.
+This script allows the comparison of up to 5 different cryptocurrencies, published in a PDF report.
 
 Author: Caolan Rafferty
 Date: 2023-08-12
@@ -289,7 +289,8 @@ def plot_price_data():
     plt.savefig(files[-1])
 
     plt.clf()
-    heat = price_data.corr(method="pearson")
+
+    heat = price_data[coins].corr(method="pearson")
     sns_plot = sns.heatmap(
         heat, cmap="Blues", annot=True, fmt=".2f", annot_kws={"fontsize": 8}
     )
