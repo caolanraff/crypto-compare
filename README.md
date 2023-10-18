@@ -22,8 +22,8 @@ pip install -r requirements.txt
 
 ### Usage
 ```
-$ python3 scripts/crypto-compare.py --help
-usage: crypto-compare.py [-h] [--config CONFIG]
+$ python src/main.py --help
+usage: main.py [-h] [--config CONFIG]
 
 optional arguments:
   -h, --help       show this help message and exit
@@ -32,7 +32,7 @@ optional arguments:
 
 ### Examples
 ```
-python3 scripts/crypto-compare.py --config config/default.ini
+python src/main.py --config config/default.ini
 ```
 
 ### Rate Limit
