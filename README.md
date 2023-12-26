@@ -15,14 +15,15 @@ Multiple configs can be created to generate various reports.
 Sample output file: [CryptoCompare.pdf](data/output/CryptoCompare.pdf)
 
 ### Getting started
-Clone the project and run:
+Clone the project and install poetry:
 ```
-pip install -r requirements.txt
+$ brew install poetry
+$ poetry install
 ```
 
 ### Usage
 ```
-$ python src/main.py --help
+$ poetry run python src/main.py --help
 usage: main.py [-h] [--config CONFIG]
 
 optional arguments:
@@ -32,7 +33,7 @@ optional arguments:
 
 ### Examples
 ```
-python src/main.py --config config/default.ini
+poetry run python src/main.py --config config/default.ini
 ```
 
 ### Rate Limit

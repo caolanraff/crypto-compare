@@ -26,7 +26,8 @@ from utils.pdf import saved_pdf_files
 
 # Session settings
 warnings.filterwarnings("ignore", category=DeprecationWarning)
-plt.style.use("seaborn")
+warnings.filterwarnings("ignore", category=FutureWarning)
+plt.style.use("seaborn-v0_8")
 palette = [
     "#1f77b4",
     "#ff7f0e",
@@ -277,17 +278,11 @@ def get_financial_data(coins: List[str]) -> None:
 
 def get_ratings_data(coins: List[str]) -> None:
     """Get ratings data."""
-    logging.info("Getting title page")
+    logging.info("Getting ratings data")
 
     keys = [
         "sentiment_votes_up_percentage",
         "sentiment_votes_down_percentage",
-        "coingecko_rank",
-        "coingecko_score",
-        "developer_score",
-        "community_score",
-        "liquidity_score",
-        "public_interest_score",
     ]
     add_round = keys
     add_percent = ["sentiment_votes_up_percentage", "sentiment_votes_down_percentage"]

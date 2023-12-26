@@ -1,0 +1,22 @@
+[tool.poetry]
+name = "crypto-compare"
+version = "0.1.0"
+description = "Crypto Comparison Tool"
+authors = ["Caolan Rafferty <caolanraff@hotmail.co.uk>"]
+license = "MIT License"
+readme = "README.md"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+matplotlib = "^3.8.2"
+numpy = "^1.26.2"
+pdfrw = "^0.4"
+seaborn = "^0.13.0"
+fpdf = "^1.7.2"
+pycoingecko = "^3.1.0"
+reportlab = "^4.0.8"
+
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
