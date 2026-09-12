@@ -10,13 +10,21 @@ readme = "README.md"
 python = "^3.11"
 matplotlib = "^3.8.2"
 numpy = "^1.26.2"
+pandas = "^2.1.4"
 pdfrw = "^0.4"
 seaborn = "^0.13.0"
 fpdf = "^1.7.2"
 pycoingecko = "^3.1.0"
 reportlab = "^4.0.8"
 
+[tool.poetry.group.dev.dependencies]
+pytest = "^8.3.2"
+pytest-mock = "^3.14.0"
+pytest-cov = "^5.0.0"
 
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
+
+[tool.pytest.ini_options]
+addopts = "-vv -x -s --cov=src/report --cov=src/utils --cov-report term-missing"
