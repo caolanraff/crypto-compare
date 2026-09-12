@@ -12,6 +12,7 @@ import seaborn as sns
 from fpdf import FPDF
 from matplotlib.backends.backend_pdf import PdfPages
 
+from src.cli.const import ACCENT_COLOR, ACCENT_COLOR_RGB, CHART_PALETTE
 from src.report.calcs import (
     calculate_community_dataframe,
     calculate_developer_dataframe,
@@ -25,19 +26,6 @@ from src.utils.pdf import df_to_pdf, save_paragraphs_to_pdf
 from src.utils.types import CoinData
 
 plt.style.use("seaborn-v0_8")
-
-CHART_PALETTE = [
-    "#1f77b4",
-    "#ff7f0e",
-    "#2ca02c",
-    "#d62728",
-    "#9467bd",
-    "#8c564b",
-    "#e377c2",
-    "#7f7f7f",
-    "#bcbd22",
-    "#17becf",
-]
 
 
 def create_title_page(subtitle: str, output_dir: str) -> str:
@@ -53,10 +41,27 @@ def create_title_page(subtitle: str, output_dir: str) -> str:
     """
     pdf_output = FPDF()
     pdf_output.add_page()
-    pdf_output.set_font("Arial", "B", 36)
-    pdf_output.cell(0, 80, "Crypto Compare", 0, 1, "C")
-    pdf_output.set_font("Arial", "", 24)
-    pdf_output.cell(0, 20, subtitle, 0, 1, "C")
+    page_width = pdf_output.w
+    banner_height = 90.0
+
+    # Banner with the report title and subtitle
+    pdf_output.set_fill_color(*ACCENT_COLOR_RGB)
+    pdf_output.rect(0, 0, page_width, banner_height, "F")
+
+    pdf_output.set_text_color(255, 255, 255)
+    pdf_output.set_font("Arial", "B", 34)
+    pdf_output.set_xy(0, 32)
+    pdf_output.cell(page_width, 18, "Crypto Compare", 0, 1, "C")
+    pdf_output.set_font("Arial", "", 16)
+    pdf_output.set_xy(0, 58)
+    pdf_output.cell(page_width, 12, subtitle, 0, 1, "C")
+
+    # A short accent rule below the banner
+    pdf_output.set_draw_color(*ACCENT_COLOR_RGB)
+    pdf_output.set_line_width(0.8)
+    line_y = banner_height + 30
+    pdf_output.line(page_width / 2 - 35, line_y, page_width / 2 + 35, line_y)
+
     file = f"{output_dir}/title.pdf"
     pdf_output.output(file)
     return file
@@ -101,7 +106,9 @@ def plot_price_data(
     ax.set_prop_cycle(color=CHART_PALETTE)
     for coin in coins:
         ax.plot(price_data["time"], price_data[coin], label=coin)
-    plt.title("90 Day Price Changes", fontsize=12, fontweight="bold")
+    plt.title(
+        "90 Day Price Changes", fontsize=12, fontweight="bold", color=ACCENT_COLOR
+    )
     ax.set_xlabel("Date")
     ax.set_ylabel("Price")
     fig.legend(loc="upper right")
@@ -115,7 +122,9 @@ def plot_price_data(
         heat, cmap="Blues", annot=True, fmt=".2f", annot_kws={"fontsize": 8}
     )
     sns_plot.figure.set_size_inches(10, 7)
-    sns_plot.set_title("Price Correlation", fontsize=12, fontweight="bold")
+    sns_plot.set_title(
+        "Price Correlation", fontsize=12, fontweight="bold", color=ACCENT_COLOR
+    )
     file = f"{output_dir}/price_heatmap.pdf"
     pp = PdfPages(file)
     pp.savefig(sns_plot.figure)

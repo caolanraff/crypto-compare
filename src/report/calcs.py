@@ -172,12 +172,22 @@ def calculate_exchange_dataframe(
     exchange_data = pd.DataFrame(columns=["Exchange"])
 
     for coin in coins:
-        tickers = pd.DataFrame(coin_by_id[coin]["tickers"])
-        exchanges = tickers["market"].apply(lambda market: market["name"])
-        counts = exchanges.value_counts().rename_axis("Exchange").reset_index(name=coin)
+        tickers = coin_by_id[coin].get("tickers") or []
+        if tickers:
+            markets = pd.DataFrame(tickers)["market"].apply(lambda m: m["name"])
+            counts = (
+                markets.value_counts().rename_axis("Exchange").reset_index(name=coin)
+            )
+        else:
+            counts = pd.DataFrame(columns=["Exchange", coin])
         exchange_data = pd.merge(exchange_data, counts, on="Exchange", how="outer")
 
-    exchange_data["total"] = exchange_data.iloc[:, 1:].sum(axis=1)
+    # A coin simply isn't listed on an exchange another coin is, rather than genuinely
+    # missing data, so 0 (not blank/NaN) is the right value for those cells.
+    exchange_data[coins] = (
+        exchange_data[coins].apply(pd.to_numeric, errors="coerce").fillna(0).astype(int)
+    )
+    exchange_data["total"] = exchange_data[coins].sum(axis=1)
     exchange_data = exchange_data.sort_values(by=["total"], ascending=False)
     exchange_data = exchange_data.drop(columns=["total"]).head(10)
     exchange_data["Exchange"] = exchange_data["Exchange"].str.replace(
@@ -207,7 +217,7 @@ def calculate_financial_dataframe(
     financial_data = pd.DataFrame(columns=["Metric"])
 
     for coin in coins:
-        market_data = dict(coin_by_id[coin]["market_data"])
+        market_data = dict(coin_by_id[coin].get("market_data") or {})
         for key in _FINANCIAL_USD_KEYS:
             value = market_data.get(key)
             market_data[key] = value["usd"] if isinstance(value, dict) else value
@@ -286,7 +296,7 @@ def calculate_community_dataframe(
     community_data = pd.DataFrame(columns=["Metric"])
 
     for coin in coins:
-        data = coin_by_id[coin]["community_data"]
+        data = coin_by_id[coin].get("community_data") or {}
         dic: Dict[str, Any] = {key: data.get(key) for key in _COMMUNITY_KEYS}
         for key in _COMMUNITY_ROUND:
             dic[key] = _safe_round(dic[key], 2)
@@ -321,7 +331,7 @@ def calculate_developer_dataframe(
     developer_data = pd.DataFrame(columns=["Metric"])
 
     for coin in coins:
-        data = coin_by_id[coin]["developer_data"]
+        data = coin_by_id[coin].get("developer_data") or {}
         dic: Dict[str, Any] = {key: data.get(key) for key in _DEVELOPER_KEYS}
         dic["closed_issues_%"] = (
             _safe_percent(

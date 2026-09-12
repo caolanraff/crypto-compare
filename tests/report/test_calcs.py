@@ -50,6 +50,20 @@ def test_calculate_exchange_dataframe() -> None:
     assert list(result["Bitcoin"]) == [2, 1]
 
 
+def test_calculate_exchange_dataframe_handles_coin_not_listed_on_an_exchange() -> None:
+    coin_by_id: Dict[str, Any] = {
+        "bitcoin": {"tickers": [{"market": {"name": "Binance"}}]},
+        "ethereum": {"tickers": []},
+    }
+
+    result = calculate_exchange_dataframe(["bitcoin", "ethereum"], coin_by_id)
+    values = dict(zip(result["Exchange"], result["Ethereum"]))
+
+    # ethereum isn't listed on Binance -> 0, not NaN/"nan"
+    assert values["Binance"] == 0
+    assert result["Ethereum"].dtype.kind == "i"
+
+
 def test_calculate_financial_dataframe_handles_missing_and_zero_fields() -> None:
     coin_by_id = {
         "bitcoin": {
@@ -128,6 +142,17 @@ def test_calculate_community_dataframe_handles_missing_fields() -> None:
     assert values["Twitter Followers"] == "1,000,000"
 
 
+def test_calculate_community_dataframe_handles_missing_section() -> None:
+    # CoinGecko omits the whole "community_data" block for some coins, not just
+    # individual fields within it.
+    coin_by_id: Dict[str, Any] = {"bitcoin": {}}
+
+    result = calculate_community_dataframe(["bitcoin"], coin_by_id)
+    values = dict(zip(result["Metric"], result["Bitcoin"]))
+
+    assert values["Facebook Likes"] is None
+
+
 def test_calculate_developer_dataframe_handles_zero_issues() -> None:
     coin_by_id = {
         "bitcoin": {
@@ -149,6 +174,29 @@ def test_calculate_developer_dataframe_handles_zero_issues() -> None:
 
     # total_issues == 0 -> percentage left blank instead of raising ZeroDivisionError
     assert values["Closed Issues %"] is None
+
+
+def test_calculate_developer_dataframe_handles_missing_section() -> None:
+    # CoinGecko omits the whole "developer_data" block for some coins, not just
+    # individual fields within it.
+    coin_by_id: Dict[str, Any] = {"bitcoin": {}}
+
+    result = calculate_developer_dataframe(["bitcoin"], coin_by_id)
+    values = dict(zip(result["Metric"], result["Bitcoin"]))
+
+    assert values["Forks"] is None
+    assert values["Closed Issues %"] is None
+
+
+def test_calculate_financial_dataframe_handles_missing_section() -> None:
+    # CoinGecko omits the whole "market_data" block for some coins, not just
+    # individual fields within it.
+    coin_by_id: Dict[str, Any] = {"bitcoin": {}}
+
+    result = calculate_financial_dataframe(["bitcoin"], coin_by_id)
+    values = dict(zip(result["Metric"], result["Bitcoin"]))
+
+    assert values["Current Price"] is None
 
 
 def test_calculate_summary_paragraphs() -> None:
