@@ -5,6 +5,7 @@ description = "Crypto Comparison Tool"
 authors = ["Caolan Rafferty <caolanraff@hotmail.co.uk>"]
 license = "MIT License"
 readme = "README.md"
+packages = [{ include = "src" }]
 
 [tool.poetry.dependencies]
 python = "^3.11"
